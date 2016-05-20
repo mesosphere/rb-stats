@@ -7,6 +7,7 @@ import time
 REVIEWBOARD_URL =\
   'https://reviews.apache.org/api/review-requests/?to-groups=mesos&status='
 
+
 REVIEWBOARD_MAX_FETCH_COUNT = 200
 
 
@@ -46,6 +47,7 @@ def process_batch(batch):
     processed.append(r)
 
   return processed;
+
 
 def _fetch_reviews(start, count, status, current, cutoff):
   url = '{base}{status}&start={start}&max-results={count}'\
@@ -94,7 +96,6 @@ def fetch_avg(days):
   chart = convert_to_chart(reviews_per_user(fetch_reviews('submitted', days))[1])
 
   return chart
-
 
 
 def reviews_per_user(reviews):
