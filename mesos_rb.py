@@ -2,6 +2,7 @@ import json
 import urllib2
 import dateutil.parser
 import time
+from collections import defaultdict
 
 
 REVIEWBOARD_URL =\
@@ -49,27 +50,24 @@ def process_batch(batch):
   return processed;
 
 
-def _fetch_reviews(start, count, status, current, cutoff):
+def _fetch_reviews(start, count, status, current_date_string, cutoff):
   url = '{base}{status}&start={start}&max-results={count}'\
-  '&last-updated-from={cutoff}&last-updated-to={current}'.format(
-                                                           base=REVIEWBOARD_URL,
-                                                           start=start,
-                                                           count=count,
-                                                           status=status,
-                                                           current=current,
-                                                           cutoff=cutoff)
+        '&last-updated-from={cutoff}&last-updated-to={current_date_string}'\
+        .format(base=REVIEWBOARD_URL, start=start, count=count, status=status,
+                current_date_string=current_date_string, cutoff=cutoff)
+
   return url_to_json(url)
 
 
 def fetch_reviews(stat, days):
 
   #setup time bounds
-  cutoff_date =time.gmtime(int((time.time())-(days * 24 * 60 * 60)))
+  cutoff_date = time.gmtime(int((time.time())-(days * 24 * 60 * 60)))
   cutoff = '{year}-{day}-{month}'.format(year=cutoff_date[0],
                                          day=cutoff_date[1],
                                          month=cutoff_date[2])
   current_date = time.gmtime(int(time.time()))
-  current = '{year}-{day}-{month}'.format(year=current_date[0],
+  current_date_string = '{year}-{day}-{month}'.format(year=current_date[0],
                                          day=current_date[1],
                                          month=current_date[2])
 
@@ -79,8 +77,8 @@ def fetch_reviews(stat, days):
                                                                     stat=stat)
 
   while True:
-    batch = _fetch_reviews(fetched, REVIEWBOARD_MAX_FETCH_COUNT, stat, current,
-                                                                        cutoff)
+    batch = _fetch_reviews(fetched, REVIEWBOARD_MAX_FETCH_COUNT, stat,
+                           current_date_string, cutoff)
     reviews += process_batch(batch)
     total_count = int(batch['total_results'])
     fetched += REVIEWBOARD_MAX_FETCH_COUNT
@@ -88,36 +86,47 @@ def fetch_reviews(stat, days):
     if fetched >= total_count:
       print 'Processed {number} reviews.'.format(number=total_count)
       break
-
   return reviews
 
 
-def fetch_avg(days):
-  chart = convert_to_chart(reviews_per_user(fetch_reviews('submitted', days))[1])
+def fetch_specific(days,data_type):
+  chart = reviews_per_user(fetch_reviews(data_type, days))
 
   return chart
 
 
 def reviews_per_user(reviews):
   user_reviews = {}
-  user_resolved = {}
+  user_resolved = defaultdict(list)
   avg_resolved = {}
+  median_resolved = {}
 
   # Generate User -> Review Count dictionary.
   for review in reviews:
     submitter = review['submitter']
     if submitter not in user_reviews.keys():
       user_reviews[submitter] = 0
-      user_resolved[submitter] = 0
+      user_resolved[submitter].append(0)
 
     user_reviews[submitter] += 1
-    user_resolved[submitter] += review['issue_resolved_count']
+    user_resolved[submitter].append(review['issue_resolved_count'])
+    user_resolved[submitter][0] += review['issue_resolved_count']
 
-    for reviewer in user_reviews:
-      avg_resolved[reviewer] = float(user_resolved[reviewer])/float(
-                                     user_reviews[reviewer])
 
-  return (user_reviews, avg_resolved)
+  for submitter in user_resolved:
+    submitter_issues = []
+    for issues in user_resolved[submitter][1:]:
+      submitter_issues.append(issues)
+    sorted(submitter_issues)
+    median_index = int(len(submitter_issues)/2)
+    median_resolved[submitter] = submitter_issues[median_index]
+
+  for reviewer in user_reviews:
+    avg_resolved[reviewer] = float(user_resolved[reviewer][0])/float(
+                                   user_reviews[reviewer])
+
+  return {'review_count': user_reviews, 'avg_issue_per_review': avg_resolved,\
+          'median_issue':median_resolved}
 
 
 def reviews_per_shepherd(reviews):
