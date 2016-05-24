@@ -67,6 +67,7 @@ def fetch_reviews(stat, cutoff_from, cutoff_to):
   cutoff = '{year}-{day}-{month}'.format(year=cutoff_date[0],
                                          day=cutoff_date[1],
                                          month=cutoff_date[2])
+
   current_date = time.gmtime(int((time.time())-(cutoff_to * 24 * 60 * 60)))
   current_date_string = '{year}-{day}-{month}'.format(year=current_date[0],
                                          day=current_date[1],
