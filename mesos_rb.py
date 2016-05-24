@@ -67,16 +67,16 @@ def fetch_reviews(stat, cutoff_from, cutoff_to):
   cutoff = '{year}-{day}-{month}'.format(year=cutoff_date[0],
                                          day=cutoff_date[1],
                                          month=cutoff_date[2])
+
   current_date = time.gmtime(int((time.time())-(cutoff_to * 24 * 60 * 60)))
   current_date_string = '{year}-{day}-{month}'.format(year=current_date[0],
-                                         day=current_date[1],
-                                         month=current_date[2])
+                                                      day=current_date[1],
+                                                      month=current_date[2])
 
   reviews = []
   fetched = 0
   print 'Fetching {stat} reviews from Review Board. Please wait...'.format(
                                                                     stat=stat)
-
   while True:
     batch = _fetch_reviews(fetched, REVIEWBOARD_MAX_FETCH_COUNT, stat,
                            current_date_string, cutoff)
@@ -101,6 +101,7 @@ def fetch_untouched(cutoff_from, cutoff_to, data_type):
 
   return chart
 
+
 def reviews_per_user(reviews):
   user_reviews = {}
   user_resolved = defaultdict(list)
@@ -121,14 +122,15 @@ def reviews_per_user(reviews):
     user_resolved[submitter][0] += review['issue_resolved_count']
     open_issues[submitter] += review['issue_open_count']
 
-
   for submitter in user_resolved:
     submitter_issues = []
     for issues in user_resolved[submitter][1:]:
       submitter_issues.append(issues)
-    sorted(submitter_issues)
-    median_index = int(len(submitter_issues)/2)
-    median_resolved[submitter] = submitter_issues[median_index]
+
+    _sorted = sorted(submitter_issues)
+    median_index = int(len(_sorted)/2)
+
+    median_resolved[submitter] = _sorted[median_index]
 
   for reviewer in user_reviews:
     avg_resolved[reviewer] = float(user_resolved[reviewer][0])/float(
