@@ -27,7 +27,8 @@ def process_batch(batch):
     'ship_it_count',
     'last_updated',
     'status',
-    'issue_resolved_count'
+    'issue_resolved_count',
+    'issue_dropped_count'
   ]
 
   processed = []
@@ -59,14 +60,14 @@ def _fetch_reviews(start, count, status, current_date_string, cutoff):
   return url_to_json(url)
 
 
-def fetch_reviews(stat, days):
+def fetch_reviews(stat, cutoff_from, cutoff_to):
 
   #setup time bounds
-  cutoff_date = time.gmtime(int((time.time())-(days * 24 * 60 * 60)))
+  cutoff_date = time.gmtime(int((time.time())-(cutoff_from * 24 * 60 * 60)))
   cutoff = '{year}-{day}-{month}'.format(year=cutoff_date[0],
                                          day=cutoff_date[1],
                                          month=cutoff_date[2])
-  current_date = time.gmtime(int(time.time()))
+  current_date = time.gmtime(int((time.time())-(cutoff_to * 24 * 60 * 60)))
   current_date_string = '{year}-{day}-{month}'.format(year=current_date[0],
                                          day=current_date[1],
                                          month=current_date[2])
@@ -89,17 +90,23 @@ def fetch_reviews(stat, days):
   return reviews
 
 
-def fetch_specific(days,data_type):
-  chart = reviews_per_user(fetch_reviews(data_type, days))
+def fetch_specific(cutoff_from, cutoff_to, data_type):
+  chart = reviews_per_user(fetch_reviews(data_type, cutoff_from, cutoff_to))
 
   return chart
 
+
+def fetch_untouched(cutoff_from, cutoff_to, data_type):
+  chart = untouched_reviews(fetch_reviews(data_type, cutoff_from, cutoff_to))
+
+  return chart
 
 def reviews_per_user(reviews):
   user_reviews = {}
   user_resolved = defaultdict(list)
   avg_resolved = {}
   median_resolved = {}
+  open_issues = {}
 
   # Generate User -> Review Count dictionary.
   for review in reviews:
@@ -107,10 +114,12 @@ def reviews_per_user(reviews):
     if submitter not in user_reviews.keys():
       user_reviews[submitter] = 0
       user_resolved[submitter].append(0)
+      open_issues[submitter] = 0
 
     user_reviews[submitter] += 1
     user_resolved[submitter].append(review['issue_resolved_count'])
     user_resolved[submitter][0] += review['issue_resolved_count']
+    open_issues[submitter] += review['issue_open_count']
 
 
   for submitter in user_resolved:
@@ -126,7 +135,7 @@ def reviews_per_user(reviews):
                                    user_reviews[reviewer])
 
   return {'review_count': user_reviews, 'avg_issue_per_review': avg_resolved,\
-          'median_issue':median_resolved}
+          'median_issue':median_resolved, 'open_issues': open_issues}
 
 
 def reviews_per_shepherd(reviews):
@@ -141,6 +150,25 @@ def reviews_per_shepherd(reviews):
       shepherd_reviews[reviewer] += 1
 
   return shepherd_reviews
+
+
+def untouched_reviews(reviews):
+  untouched_reviews = {}
+
+  for review in reviews:
+    submitter = review['submitter']
+
+    if review['issue_dropped_count'] == 0 and\
+       review['issue_open_count'] == 0 and\
+       review['issue_resolved_count'] == 0 and\
+       review['ship_it_count'] == 0:
+
+       if submitter not in untouched_reviews.keys():
+         untouched_reviews[submitter] = 0
+
+       untouched_reviews[submitter] += 1
+
+  return untouched_reviews
 
 
 def convert_to_chart(dict):
