@@ -12,7 +12,6 @@ REVIEWBOARD_MAX_FETCH_COUNT = 200
 
 def url_to_json(url):
   """Performs HTTP request and returns JSON-ified response."""
-  print url
   json_str = urllib2.urlopen(url)
   return json.loads(json_str.read())
 
@@ -70,7 +69,6 @@ def _fetch_review_requests(start, count, status, cutoff_days):
                status=status,
                from_date=iso8601_string(cutoff_days),
                to_date=iso8601_string())
-  print url
   return url_to_json(url)
 
 
@@ -87,7 +85,7 @@ def fetch_review_requests(status, cutoff_days):
     fetched += REVIEWBOARD_MAX_FETCH_COUNT
 
     if fetched >= total_count:
-      print 'Processed {number} reviews.'.format(number=total_count)
+      print 'Fetched {number} reviews.'.format(number=total_count)
       break
 
   return reviews
@@ -130,6 +128,34 @@ def review_instances(review_request):
 
   return instances
 
+# Returns all diffs for a given review request.
+def latest_diff(review_request):
+  review_request_id = review_request['review_request_id']
+
+  review_diffs_url ='{base}{id}/diffs/'.format(base=REVIEWBOARD_URL,id=review_request_id)
+
+  diffs = url_to_json(review_diffs_url)
+
+  revision = 0
+
+  for diff in diffs['diffs']:
+    if diff['revision'] > revision:
+      revision = diff['revision']
+      latest_diff = diff
+
+  # Populate diff dictionary.
+  diff['review_request_id'] = review_request_id
+  diff['diff_id'] = latest_diff['id']
+  diff['revision'] = latest_diff['revision']
+  diff['timestamp'] = latest_diff['timestamp']
+
+  # Fetch the patch file and populate the field.
+  patch_file_url = '{base}{id}/diffs/{revision}/'.format(base=REVIEWBOARD_URL,id=review_request_id,revision=diff['revision'])
+  request = urllib2.Request(patch_file_url)
+  request.add_header('Accept', 'text/x-patch')
+  diff['patch_file'] = unicode(urllib2.urlopen(request).read(), "utf-8")
+
+  return diff
 
 # Returns all comments for a given review instance
 def review_comments(review_instance):
@@ -161,6 +187,7 @@ def review_comments(review_instance):
     comments.append(c)
 
   return comments
+
 
 def reviews_per_user(reviews):
   user_reviews = {}

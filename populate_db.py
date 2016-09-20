@@ -2,8 +2,8 @@ import sqlite3
 import mesos_rb as m
 import sys
 
-CUTOFF_DAYS = 1
-STATUS = 'submitted'
+CUTOFF_DAYS = 120
+STATUS = 'pending'
 DB_FILE_NAME = 'test_rb.db'
 
 
@@ -66,6 +66,20 @@ def insert_review_request(review_request):
     c.execute(insert, review_request)
     conn.commit()
 
+def insert_diff(diff):
+    insert = 'INSERT INTO diffs(review_request_id,'\
+                               'diff_id,'\
+                               'revision,'\
+                               'timestamp,'\
+                               'patch_file) '\
+                      'VALUES (:review_request_id,'\
+                              ':diff_id,'\
+                              ':revision,'\
+                              ':timestamp,'\
+                              ':patch_file)'
+
+    c.execute(insert, diff)
+    conn.commit()
 
 conn = sqlite3.connect(DB_FILE_NAME)
 c = conn.cursor()
@@ -74,10 +88,13 @@ c = conn.cursor()
 review_requests = m.fetch_review_requests(STATUS, CUTOFF_DAYS)
 
 for review_request in review_requests:
-    print 'Processing review request {id}'.\
-          format(id=review_request['review_request_id'])
+    diffs = m.latest_diff(review_request)
 
+for review_request in review_requests:
     insert_review_request(review_request)
+
+    print 'Fetching and processing review instances for review request {id}'.\
+          format(id=review_request['review_request_id'])
 
     # For each review request fetch  and process review instances.
     review_instances = m.review_instances(review_request)
@@ -93,5 +110,13 @@ for review_request in review_requests:
             comment['review_request_submitter'] = review_instance['review_request_submitter']
 
             insert_comment(comment)
+
+    print 'Fetching and processing diffs for review request {id}'.\
+          format(id=review_request['review_request_id'])
+
+    # For each review request fetch and process the latest diff.
+    diff = m.latest_diff(review_request)
+
+    insert_diff(diff)
 
 c.close()

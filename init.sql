@@ -34,3 +34,12 @@ CREATE TABLE IF NOT EXISTS "comments" (
        "reviewer"                 VARCHAR NOT NULL,
        "review_request_submitter" VARCHAR NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "diffs" (
+       "id"                INTEGER PRIMARY KEY AUTOINCREMENT,
+       "review_request_id" INTEGER NOT NULL,
+       "diff_id"           INTEGER NOT NULL,
+       "revision"          INTEGER NOT NULL,
+       "timestamp"         INTEGER NOT NULL,
+       "patch_file"        VARCHAR NOT NULL
+);
